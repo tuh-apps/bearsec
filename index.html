@@ -4,38 +4,78 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>BearSec Threat Intel Center</title>
-
-  <!-- Favicon ของหน้า Wrapper นี้ทำงานได้ปกติ (ไม่ใช่ข้อจำกัดแบบ Apps Script) เพราะเป็นหน้า Static ธรรมดา -->
-  <link rel="icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f43b.png">
-
+  <!-- BearSec v3.0.0 — หน้าครอบ (GitHub Pages) ของ Web App บน Apps Script
+       • ชื่อแท็บ / ไอคอนแท็บ / หน้ารอโหลด เปลี่ยนตาม "ตั้งค่าระบบ → 🎨 หน้าตาระบบ" และธีมที่ผู้ใช้เลือก (แอปส่งมาให้ด้วย postMessage)
+       • รับข้อความเฉพาะจากโดเมนของ Google Apps Script และรับเฉพาะค่าที่อยู่ในรายการ (ไม่มีข้อมูลลับในข้อความนี้)
+       • ไอคอนแท็บวาดจากรายการไอคอนในไฟล์นี้เท่านั้น ไม่โหลด URL ที่ส่งมา -->
+  <link id="fav" rel="icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f43b.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; }
+    :root { --bg: #0b0d10; --fg: #d7dce3; --mute: #8b95a3; --accent: #f59e0b; --ring: rgba(255,255,255,.18); }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
     iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: none; display: block; }
-    #loading {
-      position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: #0f172a; color: #f1f5f9; font-family: -apple-system, 'Segoe UI', sans-serif; z-index: 10; gap: 12px;
-    }
-    #loading .icon { font-size: 40px; }
-    #loading .spinner {
-      width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.25); border-top: 3px solid #6366f1;
-      border-radius: 50%; animation: spin 0.8s linear infinite;
-    }
+    #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      background: var(--bg); color: var(--fg); font-family: -apple-system, 'Segoe UI', 'Noto Sans Thai', sans-serif; z-index: 10; }
+    #loading .icon { font-size: 40px; line-height: 1; }
+    #loading .spinner { width: 24px; height: 24px; border: 3px solid var(--ring); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    #loading .msg { color: var(--mute); font-size: 14px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #loading .spinner { animation-duration: 2.4s; } }
   </style>
+  <script>
+    // สีหน้ารอโหลดของแต่ละธีม (ตรงกับแอป) — [พื้น, ตัวอักษร, ตัวอักษรรอง, สีเน้น, วงหมุน]
+    var BS_PALETTE = {
+      classic:    { light: ['#F6F7FB', '#1B1E2B', '#5B6175', '#4F46E5', 'rgba(27,30,43,.14)'], dark: ['#0F0E1D', '#E9E8F6', '#A7A4C7', '#818CF8', 'rgba(255,255,255,.18)'] },
+      ledger:     { light: ['#F6F5F1', '#1D1C1A', '#5F5B53', '#C2410C', 'rgba(29,28,26,.14)'],  dark: ['#161512', '#ECE8DF', '#B3AD9F', '#FB923C', 'rgba(255,255,255,.18)'] },
+      console:    { light: ['#ECEEF1', '#14181E', '#4B5563', '#D97706', 'rgba(20,24,30,.14)'],  dark: ['#0B0D10', '#D7DCE3', '#8B95A3', '#F59E0B', 'rgba(255,255,255,.18)'] },
+      enterprise: { light: ['#F4F4F4', '#161616', '#525252', '#0F62FE', 'rgba(22,22,22,.14)'],  dark: ['#161616', '#F4F4F4', '#C6C6C6', '#4589FF', 'rgba(255,255,255,.18)'] }
+    };
+    // ไอคอนที่เลือกได้ในแอป → อีโมจิ + รหัสรูป twemoji (ใช้เป็นไอคอนแท็บ)
+    var BS_ICONS = { bear: ['🐻', '1f43b'], shield: ['🛡️', '1f6e1'], owl: ['🦉', '1f989'], eagle: ['🦅', '1f985'], wolf: ['🐺', '1f43a'], fox: ['🦊', '1f98a'],
+      tiger: ['🐯', '1f42f'], lion: ['🦁', '1f981'], dragon: ['🐉', '1f409'], bee: ['🐝', '1f41d'], satellite: ['🛰️', '1f6f0'], antenna: ['📡', '1f4e1'],
+      telescope: ['🔭', '1f52d'], eye: ['👁️', '1f441'], detective: ['🕵️', '1f575'], lock_key: ['🔐', '1f510'], lock: ['🔒', '1f512'], old_key: ['🗝️', '1f5dd'],
+      nazar: ['🧿', '1f9ff'], target: ['🎯', '1f3af'], siren: ['🚨', '1f6a8'], network: ['🌐', '1f310'], globe: ['🌍', '1f30d'], bolt: ['⚡', '26a1'] };
+    var BS_KEY = 'bearsec.wrap';
+    function bsClean(o) {
+      o = o && typeof o === 'object' ? o : {};
+      var txt = function (v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max); };
+      return { theme: BS_PALETTE[o.theme] ? o.theme : 'console', mode: o.mode === 'light' || o.mode === 'dark' ? o.mode : '',
+        name: txt(o.name, 40) || 'BearSec', sub: txt(o.sub, 48), icon: BS_ICONS[o.icon] ? o.icon : 'bear' };
+    }
+    function bsLoad() { try { return bsClean(JSON.parse(localStorage.getItem(BS_KEY) || '{}')); } catch (e) { return bsClean({}); } }
+    function bsApply(c) {
+      var mode = c.mode || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      var p = BS_PALETTE[c.theme][mode], r = document.documentElement.style;
+      r.setProperty('--bg', p[0]); r.setProperty('--fg', p[1]); r.setProperty('--mute', p[2]); r.setProperty('--accent', p[3]); r.setProperty('--ring', p[4]);
+      var sub = c.sub.toLowerCase().replace(/\b[a-z]/g, function (x) { return x.toUpperCase(); });
+      document.title = c.name + (sub ? ' ' + sub : '');
+      var fav = document.getElementById('fav'); if (fav) fav.href = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/' + BS_ICONS[c.icon][1] + '.png';
+      var ic = document.getElementById('bs-icon'), msg = document.getElementById('bs-msg');
+      if (ic) ic.textContent = BS_ICONS[c.icon][0];
+      if (msg) msg.textContent = 'กำลังโหลด ' + document.title + '...';
+    }
+    var BS_CFG = bsLoad(); bsApply(BS_CFG);
+    // ข้อความจากแอป: เชื่อเฉพาะโดเมน Apps Script และค่าในรายการ
+    window.addEventListener('message', function (e) {
+      if (!/^https:\/\/([a-z0-9-]+\.)*(googleusercontent\.com|script\.google\.com)$/.test(e.origin)) return;
+      var d = e.data; if (!d || d.type !== 'bearsec-ui' || d.v !== 1) return;
+      BS_CFG = bsClean(d); bsApply(BS_CFG);
+      try { localStorage.setItem(BS_KEY, JSON.stringify(BS_CFG)); } catch (err) {}
+    });
+  </script>
 </head>
 <body>
   <div id="loading">
-    <div class="icon">🐻</div>
+    <div class="icon" id="bs-icon">🐻</div>
     <div class="spinner"></div>
-    <div>กำลังโหลด BearSec Threat Intel Center...</div>
+    <div class="msg" id="bs-msg">กำลังโหลด BearSec Threat Intel Center...</div>
   </div>
+  <script>bsApply(BS_CFG);</script>
 
   <!--
-    🔧 ต้องแก้ตรงนี้จุดเดียว: เปลี่ยน src ด้านล่างเป็น URL /exec จริงของคุณ
-    ⚠️ สำคัญ: ใช้ URL จาก "Manage deployments > แก้ไข Deployment เดิม (ไอคอนดินสอ) > New version"
-    เท่านั้น อย่าใช้ "New deployment" เพราะจะได้ URL ใหม่ทุกครั้งและทำให้หน้านี้เชื่อมไม่ติดอีกต่อไป
-    การแก้ไข Deployment เดิมแบบ New Version จะคง URL เดิมไว้เสมอ ถึงจะอัปเดตโค้ดกี่ครั้งก็ตาม
+    🔧 ต้องแก้ตรงนี้จุดเดียว: src ด้านล่าง = URL /exec จริงของคุณ
+    ⚠️ ใช้ URL จาก "Manage deployments > แก้ไข Deployment เดิม (ไอคอนดินสอ) > New version" เท่านั้น
+    อย่าใช้ "New deployment" เพราะจะได้ URL ใหม่ และหน้านี้จะเชื่อมไม่ติด
   -->
   <iframe
     src="https://script.google.com/macros/s/AKfycbwpuWx9aNS_h4Leb-OvEEUiT-BU-q6g3Y21eu49rLZ_UKMiUmRqm6jE3J5adYpvZm2wJA/exec"
