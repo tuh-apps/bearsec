@@ -77,11 +77,19 @@
     ⚠️ ใช้ URL จาก "Manage deployments > แก้ไข Deployment เดิม (ไอคอนดินสอ) > New version" เท่านั้น
     อย่าใช้ "New deployment" เพราะจะได้ URL ใหม่ และหน้านี้จะเชื่อมไม่ติด
   -->
-  <iframe
+  <iframe id="bs-app"
     src="https://script.google.com/macros/s/AKfycbwpuWx9aNS_h4Leb-OvEEUiT-BU-q6g3Y21eu49rLZ_UKMiUmRqm6jE3J5adYpvZm2wJA/exec"
     title="BearSec Threat Intel Center"
     onload="document.getElementById('loading').style.display='none'"
     allow="clipboard-write">
   </iframe>
+  <script>
+    // 🛠️ v3.1.0 ช่วงปิดปรับปรุง: ส่งต่อ ?door=คำผ่านประตู ไปที่แอป (เปิดหน้าครอบด้วย .../?door=คำ) — ไม่มี door = ไม่แตะ src เดิม
+    (function () {
+      var d = new URLSearchParams(location.search).get('door'); if (!d) return;
+      var f = document.getElementById('bs-app'); var u = new URL(f.getAttribute('src'));
+      u.searchParams.set('door', d.slice(0, 40)); f.setAttribute('src', u.toString());
+    })();
+  </script>
 </body>
 </html>
