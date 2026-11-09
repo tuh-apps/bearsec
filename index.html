@@ -84,11 +84,13 @@
     allow="clipboard-write">
   </iframe>
   <script>
-    // 🛠️ v3.1.0 ช่วงปิดปรับปรุง: ส่งต่อ ?door=คำผ่านประตู ไปที่แอป (เปิดหน้าครอบด้วย .../?door=คำ) — ไม่มี door = ไม่แตะ src เดิม
+    // v4.2.0 ส่งต่อพารามิเตอร์ที่แอปใช้ไปให้แอป (เปิดหน้าครอบด้วย .../?ref=คำ หรือ ?monitor=รหัส) — ไม่มี = ไม่แตะ src เดิม
+    //   ref = ลิงก์เข้าช่วงปิดปรับปรุง (เดิม door) · monitor = ลิงก์ผูกจอมอนิเตอร์ / ?monitor=1 เปิดจอที่ผูกแล้ว
     (function () {
-      var d = new URLSearchParams(location.search).get('door'); if (!d) return;
-      var f = document.getElementById('bs-app'); var u = new URL(f.getAttribute('src'));
-      u.searchParams.set('door', d.slice(0, 40)); f.setAttribute('src', u.toString());
+      var q = new URLSearchParams(location.search); var f = document.getElementById('bs-app'); var u = new URL(f.getAttribute('src')); var on = false;
+      var r = q.get('ref'); if (r) { u.searchParams.set('ref', r.slice(0, 40)); on = true; }
+      var m = q.get('monitor'); if (m && /^(1|[a-f0-9]{32})$/.test(m)) { u.searchParams.set('monitor', m); on = true; }
+      if (on) f.setAttribute('src', u.toString());
     })();
   </script>
 </body>
